@@ -34,7 +34,7 @@ setup(
     license='GNU GPLv3',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['kamaki>=0.9'],
+    install_requires=['kamaki>=0.9', 'requests'],
     entry_points={
         'console_scripts': [
                 'icaas-monitord = icaas_agent.monitord:main']
@@ -47,7 +47,6 @@ setup(
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7'],
     keywords = 'cloud IaaS OS images'
 )

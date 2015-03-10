@@ -20,4 +20,3 @@
 from icaas_agent.version import __version__
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
-
