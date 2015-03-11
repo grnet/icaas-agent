@@ -34,7 +34,7 @@ setup(
     license='GNU GPLv3',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['kamaki>=0.9', 'requests'],
+    install_requires=['kamaki>=0.9', 'requests', 'python-daemon'],
     entry_points={
         'console_scripts': [
                 'icaas-monitord = icaas_agent.monitord:main']

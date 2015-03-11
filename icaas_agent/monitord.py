@@ -26,13 +26,20 @@ import sys
 import os
 import ConfigParser
 import requests
+import signal
+import daemon
+import time
 
+from kamaki.clients import ClientError
 from kamaki.clients.utils import https
 from kamaki.clients.astakos import AstakosClient, AstakosClientError
+from kamaki.clients.pithos import PithosClient
 
 from icaas_agent import __version__ as version
 
 CERTS = '/etc/ssl/certs/ca-certificates.crt'
+NAME = os.path.basename(sys.argv[0])
+PID = '/var/run/%s.pid' % NAME
 
 
 def error(msg):
@@ -67,8 +74,9 @@ def report_error(url, message):
     """Report an error to the icaas service"""
 
     error(message)
-    r = requests.put(url, data={'status': "ERROR", 'reason': message})
-    return r.ok
+    data = {'status': "ERROR", 'reason': "%s: %s" % (NAME, message)}
+    request = requests.put(url, data=data)
+    return request.ok
 
 
 def validate_manifest(service, image):
@@ -79,21 +87,36 @@ def validate_manifest(service, image):
         error(msg % ("status", "service"))
         return False
 
-    for key in 'url', 'token', 'log', 'path', 'status':
+    for key in 'url', 'token', 'log', 'status':
         if key not in service:
             report_error(service['status'], msg % (key, 'service'))
             return False
 
-    if 'url' not in image:
-        report_error(service['status'], msg % ('url', 'image'))
-        return False
-
-    if 'name' not in image:
-        report_error(service['status'], msg % ('name', 'image'))
-        return False
+    for key in 'url', 'name', 'object':
+        if key not in image:
+            report_error(service['status'], msg % (key, 'image'))
+            return False
 
     # service:proxy, image:description, image:public are optional
     return True
+
+
+def do_main_loop(monitor, interval, client, name):
+    """Main loop of the monitord service"""
+
+    try:
+        client.create_container(client.container)
+    except ClientError as error:
+        if error.status != 202:  # Ignore container already exists errors
+            raise error
+
+    # Use SIGHUP to unblock from the sleep if necessary
+    signal.signal(signal.SIGHUP, lambda x, y: None)
+
+    while True:
+        with open(monitor, "r") as m:
+            client.upload_object(name, m)
+        time.sleep(interval)
 
 
 def main():
@@ -114,8 +137,15 @@ def main():
                         help="upload the file every %(metavar)s seconds")
     args = parser.parse_args()
 
+    if os.path.isfile(PID):
+        error("Prοgram is already running. If this is not the case, please "
+              "delete %s" % PID)
+        sys.exit(2)
+
     if not os.path.isfile(args.file):
         parser.error("file to monitor not found")
+
+    args.file = os.path.realpath(args.file)
 
     if not os.path.isfile(args.manifest):
         parser.error("Manifest file: `%s' not found. Use -m to specify a "
@@ -129,15 +159,43 @@ def main():
     if not validate_manifest(service, image):
         sys.exit(3)
 
+    try:
+        container, logname = service['log'].split('/', 1)
+    except ValueError:
+        report_error(service['status'],
+                     'Incorrect format for log entry in manifest file')
+
     # Use the systems certificates
     https.patch_with_certs(CERTS)
 
     account = AstakosClient(service['url'], service['token'])
-
     try:
         account.authenticate()
     except AstakosClientError as err:
         report_error(service['status'], "Astakos: %s" % err)
         sys.exit(3)
+
+    pithos = PithosClient(
+        account.get_service_endpoints('object-store')['publicURL'],
+        account.token, account.user_info['id'], container)
+
+    if args.daemonize:
+        daemon_context = daemon.DaemonContext(stdin=sys.stdin,
+                                              stdout=sys.stdout,
+                                              stderr=sys.stderr)
+        daemon_context.open()
+
+    with open(PID, 'w') as pid:
+        pid.write("%d\n" % os.getpid())
+
+    try:
+        if 'ICAAS_MONITOR_SIGSTOP' in os.environ:
+            # Tell service supervisor that we are ready.
+            os.kill(os.getpid(), signal.SIGSTOP)
+            del os.environ['ICAAS_MONITOR_SIGSTOP']
+
+        do_main_loop(args.file, args.interval, pithos, logname)
+    finally:
+        os.unlink(PID)
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
