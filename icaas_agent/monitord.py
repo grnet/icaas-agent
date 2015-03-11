@@ -29,6 +29,10 @@ import requests
 import signal
 import daemon
 import time
+import string
+import random
+import subprocess
+import StringIO
 
 from kamaki.clients import ClientError
 from kamaki.clients.utils import https
@@ -67,7 +71,7 @@ def read_manifest(manifest):
     for key, value in config.items('image'):
         image[key] = value
 
-    return service, image
+    return {'service': service, 'image': image}
 
 
 def report_error(url, message):
@@ -79,26 +83,47 @@ def report_error(url, message):
     return request.ok
 
 
-def validate_manifest(service, image):
+def validate_manifest(manifest):
     """Validate the data found in the manifest"""
 
     msg = "%s is missing from the %s section of the manifest"
-    if 'status' not in service:
+
+    if 'status' not in manifest['service']:
         error(msg % ("status", "service"))
         return False
+    status = manifest['service']['status']
 
     for key in 'url', 'token', 'log', 'status':
-        if key not in service:
-            report_error(service['status'], msg % (key, 'service'))
+        if key not in manifest['service']:
+            report_error(status, msg % (key, 'service'))
             return False
 
     for key in 'url', 'name', 'object':
-        if key not in image:
-            report_error(service['status'], msg % (key, 'image'))
+        if key not in manifest['image']:
+            report_error(status, msg % (key, 'image'))
             return False
 
-    # service:proxy, image:description, image:public are optional
     return True
+
+
+def save_manifest(manifest, dest):
+    """Save the manifest content in a shell sourcable format"""
+
+    magic = "".join(random.choice(string.ascii_uppercase + string.digits)
+                    for _ in xrange(16))
+
+    for section in manifest:
+        for key, value in manifest[section].items():
+            name = "%s_ICAAS_%s_%s" % (magic, section.upper(), key.upper())
+            os.environ[name] = value
+
+    process = subprocess.Popen(['bash', '-c', 'set'], stdout=subprocess.PIPE)
+    output = StringIO.StringIO(process.communicate()[0])
+
+    with open(dest, 'w') as destfh:
+        for line in iter(output):
+            if line.startswith(magic):
+                destfh.write('export %s' % line[17:])
 
 
 def do_main_loop(monitor, interval, client, name):
@@ -128,6 +153,10 @@ def main():
     parser.add_argument("-d", "--daemonize", dest="daemonize", default=False,
                         action="store_true",
                         help="detach the process from the shell")
+    parser.add_argument("-e", "--export-manifest", dest="export",
+                        metavar="FILE", default='/var/lib/icaas/manifest.sh',
+                        help="write manifest in shell sourceable format on "
+                        "this file [%(default)s]")
     parser.add_argument("-m", "--manifest", dest="manifest",
                         metavar="MANIFEST", default="/.icaas_manifest",
                         help="specifies the name of the manifest file. The "
@@ -154,16 +183,18 @@ def main():
     if args.interval < 1:
         parser.error("Interval must be at least 1")
 
-    service, image = read_manifest(args.manifest)
+    manifest = read_manifest(args.manifest)
 
-    if not validate_manifest(service, image):
+    if not validate_manifest(manifest):
         sys.exit(3)
+
+    service = manifest['service']
+    status = service['status']
 
     try:
         container, logname = service['log'].split('/', 1)
     except ValueError:
-        report_error(service['status'],
-                     'Incorrect format for log entry in manifest file')
+        report_error(status, 'Incorrect format for log entry in manifest file')
 
     # Use the systems certificates
     https.patch_with_certs(CERTS)
@@ -172,7 +203,7 @@ def main():
     try:
         account.authenticate()
     except AstakosClientError as err:
-        report_error(service['status'], "Astakos: %s" % err)
+        report_error(status, "Astakos: %s" % err)
         sys.exit(3)
 
     pithos = PithosClient(
@@ -189,6 +220,8 @@ def main():
         pid.write("%d\n" % os.getpid())
 
     try:
+        save_manifest(manifest, args.export)
+
         if 'ICAAS_MONITOR_SIGSTOP' in os.environ:
             # Tell service supervisor that we are ready.
             os.kill(os.getpid(), signal.SIGSTOP)
