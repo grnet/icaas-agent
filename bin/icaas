@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# Copyright (C) 2015 GRNET S.A.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -e
+
+# Redirect everything to icass.log
+exec >/var/log/icaas.log 2>&1
+
+error() { echo "$(date) [ERROR] $@" >&2; exit 1; }
+warn() { echo "$(date) [WARNING] $@" >&2; }
+info() { echo "$(date) [INFO] $@" >&2; }
+
+info "Starting Image Creator as a Service"
+
+if [ -f /var/lib/icaas/manifest.sh ]; then
+    source /var/lib/icaas/manifest.sh
+else
+    error "Manifest file: \`/var/lib/icaas/manifest.sh' not found"
+fi
+
+
+FILENAME=$(basename "$ICAAS_IMAGE_URL")
+BASENAME=$(basename "$ICAAS_IMAGE_URL" .zip)
+if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9.-]+\.zip ]]; then
+    error "$FILENAME"
+    #error "$ICAAS_IMAGE_URL donsn't look like a bitnami image"
+fi
+
+CONTAINER=${ICAAS_IMAGE_OBJECT%/*}
+OBJECT=${ICAAS_IMAGE_OBJECT#*/}
+
+info "Downloading image from: $ICAAS_IMAGE_URL"
+curl -L "$ICAAS_IMAGE_URL" > "/var/tmp/$FILENAME"
+
+info "Unpacking zip file"
+(
+    cd /var/tmp;
+    rm -rf /var/tmp/$BASENAME;
+    unzip -o -f /var/tmp/$FILENAME;
+    rm -f "!$";
+)
+
+IMAGE=/var/tmp/$BASENAME/$BASENAME.vmdk
+
+info "Creating image with snf-image-creator"
+snf-mkimage -u "$OBJECT" -a "$ICAAS_SERVICE_URL" -t "$ICAAS_SERVICE_TOKEN" \
+    -r "$ICAAS_IMAGE_NAME" -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" "$IMAGE"
+
+# vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
+
