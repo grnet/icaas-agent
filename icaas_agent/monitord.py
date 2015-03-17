@@ -33,6 +33,7 @@ import string
 import random
 import subprocess
 import StringIO
+import syslog
 
 from kamaki.clients import ClientError
 from kamaki.clients.utils import https
@@ -48,6 +49,7 @@ PID = '/var/run/%s.pid' % NAME
 
 def error(msg):
     """Print an error message"""
+    syslog.syslog(syslog.LOG_ERR, msg)
     sys.stderr.write("Error: %s\n" % msg)
 
 
@@ -134,6 +136,9 @@ def do_main_loop(monitor, interval, client, name):
     except ClientError as error:
         if error.status != 202:  # Ignore container already exists errors
             raise error
+        else:
+            syslog.syslog(syslog.LOG_WARNING,
+                          "Container: `%s' already exists." % client.container)
 
     # Use SIGHUP to unblock from the sleep if necessary
     signal.signal(signal.SIGHUP, lambda x, y: None)
@@ -141,6 +146,8 @@ def do_main_loop(monitor, interval, client, name):
     while True:
         with open(monitor, "r") as m:
             client.upload_object(name, m)
+        syslog.syslog(syslog.LOG_NOTICE,
+                      'uploaded monitoring file: `%s' % monitor)
         time.sleep(interval)
 
 
@@ -183,6 +190,8 @@ def main():
     if args.interval < 1:
         parser.error("Interval must be at least 1")
 
+    syslog.syslog(syslog.LOG_INFO,
+                  "Reading manifest file: `%s'" % args.manifest)
     manifest = read_manifest(args.manifest)
 
     if not validate_manifest(manifest):
@@ -224,6 +233,9 @@ def main():
 
         if 'ICAAS_MONITOR_SIGSTOP' in os.environ:
             # Tell service supervisor that we are ready.
+            syslog.syslog(
+                syslog.LOG_NOTICE, "Stopping with SIGSTOP as the "
+                "environment variable ICAAS_MONITOR_SIGSTOP is defined")
             os.kill(os.getpid(), signal.SIGSTOP)
             del os.environ['ICAAS_MONITOR_SIGSTOP']
 
