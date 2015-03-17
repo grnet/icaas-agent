@@ -165,7 +165,7 @@ def main():
                         help="write manifest in shell sourceable format on "
                         "this file [%(default)s]")
     parser.add_argument("-m", "--manifest", dest="manifest",
-                        metavar="MANIFEST", default="/.icaas_manifest",
+                        metavar="MANIFEST", default="/etc/icaas/manifest.cfg",
                         help="specifies the name of the manifest file. The "
                         "default is %(default)s.")
     parser.add_argument("-i", "--interval", dest="interval", default=5,
