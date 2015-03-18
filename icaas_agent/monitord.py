@@ -119,7 +119,8 @@ def save_manifest(manifest, dest):
             name = "%s_ICAAS_%s_%s" % (magic, section.upper(), key.upper())
             os.environ[name] = value
 
-    process = subprocess.Popen(['bash', '-c', 'set'], stdout=subprocess.PIPE)
+    process = subprocess.Popen(['/bin/bash', '-c', 'set'],
+                               stdout=subprocess.PIPE)
     output = StringIO.StringIO(process.communicate()[0])
 
     with open(dest, 'w') as destfh:
@@ -140,14 +141,27 @@ def do_main_loop(monitor, interval, client, name):
             syslog.syslog(syslog.LOG_WARNING,
                           "Container: `%s' already exists." % client.container)
 
+    # Shut down gracefully on a SIGTERM or a SIGINT signal
+    def terminate(signum, frame):
+        name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
+        syslog.syslog(syslog.LOG_NOTICE,
+                      "Gracefully shutting down on a %s signal" % name)
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, terminate)
+    signal.signal(signal.SIGINT, terminate)
+
     # Use SIGHUP to unblock from the sleep if necessary
     signal.signal(signal.SIGHUP, lambda x, y: None)
 
+    cnt = 0
     while True:
+        cnt += 1
         with open(monitor, "r") as m:
             client.upload_object(name, m)
         syslog.syslog(syslog.LOG_NOTICE,
-                      'uploaded monitoring file: `%s' % monitor)
+                      'uploaded monitoring file: `%s for the %d time' %
+                      (monitor, cnt))
         time.sleep(interval)
 
 
