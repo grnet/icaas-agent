@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with python2
+
+override_dh_install:
+	dh_install
+
+	mkdir -p debian/icaas-agent/etc/icaas
+	mkdir -p debian/icaas-agent/var/lib/icaas
+
+override_dh_installinit:
+	dh_installinit -R -n --name icaas
+
