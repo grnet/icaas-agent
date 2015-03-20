@@ -76,6 +76,13 @@ if [ "$LOGFILE" != "" ]; then
     exec >$LOGFILE 2>&1
 fi
 
+report_error() {
+    trap - ERR
+    curl -X PUT -H "Content-type: application/json" -d '{"status": "ERROR", "reason": "See log for more info"}' "$ICAAS_SERVICE_STATUS"
+}
+
+trap report_error ERR
+
 info "Starting Image Creator as a Service"
 
 FILENAME=$(basename "$ICAAS_IMAGE_URL")
@@ -104,6 +111,9 @@ snf-mkimage -u "$OBJECT" -a "$ICAAS_SERVICE_URL" -t "$ICAAS_SERVICE_TOKEN" \
     -r "$ICAAS_IMAGE_NAME" -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" "$IMAGE"
 
 info "Image Creator as a Service finished"
+
+# Report success
+curl -X PUT -H "Content-type: application/json" -d '{"status": "COMPLETED"}' "$ICAAS_SERVICE_STATUS"
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
 
