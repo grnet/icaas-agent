@@ -34,6 +34,7 @@ import random
 import subprocess
 import StringIO
 import syslog
+import json
 
 from kamaki.clients import ClientError
 from kamaki.clients.utils import https
@@ -81,7 +82,8 @@ def report_error(url, message):
 
     error(message)
     data = {'status': "ERROR", 'reason': "%s: %s" % (NAME, message)}
-    request = requests.put(url, data=data)
+    headers = {'Content-type': 'application/json'}
+    request = requests.put(url, data=json.dumps(data), headers=headers)
     return request.ok
 
 
