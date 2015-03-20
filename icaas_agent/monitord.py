@@ -151,9 +151,6 @@ def do_main_loop(monitor, interval, client, name):
     signal.signal(signal.SIGTERM, terminate)
     signal.signal(signal.SIGINT, terminate)
 
-    # Use SIGHUP to unblock from the sleep if necessary
-    signal.signal(signal.SIGHUP, lambda x, y: None)
-
     cnt = 0
     while True:
         cnt += 1
@@ -244,6 +241,9 @@ def main():
 
     try:
         save_manifest(manifest, args.export)
+
+        # Use SIGHUP to unblock from the sleep if necessary
+        signal.signal(signal.SIGHUP, lambda x, y: None)
 
         if 'ICAAS_MONITOR_SIGSTOP' in os.environ:
             # Tell service supervisor that we are ready.
