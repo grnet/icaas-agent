@@ -77,8 +77,13 @@ if [ "$LOGFILE" != "" ]; then
 fi
 
 report_error() {
+    local args=""
     trap - ERR
-    curl -X PUT -H "Content-type: application/json" -d '{"status": "ERROR", "reason": "See log for more info"}' "$ICAAS_SERVICE_STATUS"
+
+    if [ "ICAAS_SERVICE_IGNORE_SSL_ERRORS" = "True" ]; then
+        args+="-k"
+    fi
+    curl $args -X PUT -H "Content-type: application/json" -d '{"status": "ERROR", "reason": "See log for more info"}' "$ICAAS_SERVICE_STATUS"
 }
 
 trap report_error ERR
