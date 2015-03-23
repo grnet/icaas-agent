@@ -112,8 +112,13 @@ cd -
 IMAGE=/var/tmp/$BASENAME/$BASENAME.vmdk
 
 info "Creating image with snf-image-creator"
-snf-mkimage -u "$OBJECT" -a "$ICAAS_SERVICE_URL" -t "$ICAAS_SERVICE_TOKEN" \
-    -r "$ICAAS_IMAGE_NAME" -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" "$IMAGE"
+
+if [ "$ICAAS_IMAGE_PUBLIC" = "True" ]; then
+    public="--public"
+fi
+
+snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" -t "$ICAAS_SERVICE_TOKEN" \
+    -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" "$IMAGE"
 
 info "Image Creator as a Service finished"
 
