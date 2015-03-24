@@ -17,76 +17,9 @@
 
 set -e
 
-
-usage() {
-    local rc="$1"
-
-    cat <<EOF
-
-Usage: $0 [options] <manifest>
-
-Create an image and register it with a synnefo deployment according to the
-specifications found in the manifest file.
-
-OPTIONS:
-    -l LOGFILE
-        Log the output to this file
-
-    -h Print this message
-
-EOF
-
-    exit "$rc"
-}
-
 error() { echo "$(date) [ERROR] $@" >&2; exit 1; }
 warn() { echo "$(date) [WARNING] $@" >&2; }
 info() { echo "$(date) [INFO] $@" >&2; }
-
-
-while getopts "l:h" opt; do
-    case $opt in
-        l) LOGFILE="$OPTARG"
-            ;;
-        h) usage 0
-            ;;
-        ?) usage 1
-            ;;
-    esac
-done
-
-shift $((OPTIND-1))
-
-if [ -z "$1" ]; then
-    echo -e "Manifest missing." >&2
-    usage 2
-fi
-
-MANIFEST="$1"
-
-if [ -f "$MANIFEST" ]; then
-    source "$MANIFEST"
-else
-   echo "Manifest file: \`$MANIFEST' does not exist. Type $0 -h for help"
-   exit 3
-fi
-
-if [ "$LOGFILE" != "" ]; then
-    # Redirect everything the $LOGFILE
-    exec >$LOGFILE 2>&1
-fi
-
-report_error() {
-    local args=""
-    trap - ERR
-
-    if [ "ICAAS_SERVICE_IGNORE_SSL_ERRORS" = "True" ]; then
-        args+="-k"
-    fi
-    curl $args -X PUT -H "Content-type: application/json" -d '{"status": "ERROR", "reason": "See log for more info"}' "$ICAAS_SERVICE_STATUS"
-}
-
-trap report_error ERR
 
 info "Starting Image Creator as a Service"
 
@@ -121,9 +54,6 @@ snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" -t "$ICAAS_SERVICE_TOKE
     -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" "$IMAGE"
 
 info "Image Creator as a Service finished"
-
-# Report success
-curl -X PUT -H "Content-type: application/json" -d '{"status": "COMPLETED"}' "$ICAAS_SERVICE_STATUS"
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
 

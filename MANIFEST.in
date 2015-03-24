@@ -1,1 +1,2 @@
+include icaas-agent/scripts/*.sh
 include AUTHORS LICENSE README.md

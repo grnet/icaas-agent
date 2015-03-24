@@ -29,12 +29,10 @@ import requests
 import signal
 import daemon
 import time
-import string
-import random
 import subprocess
-import StringIO
 import syslog
 import json
+import tempfile
 
 from kamaki.clients import ClientError
 from kamaki.clients.utils import https
@@ -42,6 +40,7 @@ from kamaki.clients.astakos import AstakosClient, AstakosClientError
 from kamaki.clients.pithos import PithosClient
 
 from icaas_agent import __version__ as version
+from icaas_agent.scripts import get_script
 
 CERTS = '/etc/ssl/certs/ca-certificates.crt'
 NAME = os.path.basename(sys.argv[0])
@@ -87,6 +86,15 @@ def report_error(url, message):
     return request.ok
 
 
+def report_success(url):
+    """Report that the icaas service finished successfully"""
+
+    data = {'status': "COMPLETED"}
+    headers = {'Content-type': 'application/json'}
+    request = requests.put(url, data=json.dumps(data), headers=headers)
+    return request.ok
+
+
 def validate_manifest(manifest):
     """Validate the data found in the manifest"""
 
@@ -110,38 +118,21 @@ def validate_manifest(manifest):
     return True
 
 
-def save_manifest(manifest, dest):
-    """Save the manifest content in a shell sourcable format"""
-
-    magic = "".join(random.choice(string.ascii_uppercase + string.digits)
-                    for _ in xrange(16))
-
-    for section in manifest:
-        for key, value in manifest[section].items():
-            name = "%s_ICAAS_%s_%s" % (magic, section.upper(), key.upper())
-            os.environ[name] = value
-
-    process = subprocess.Popen(['/bin/bash', '-c', 'set'],
-                               stdout=subprocess.PIPE)
-    output = StringIO.StringIO(process.communicate()[0])
-
-    with open(dest, 'w') as destfh:
-        for line in iter(output):
-            if line.startswith(magic):
-                destfh.write('export %s' % line[17:])
-
-
-def do_main_loop(monitor, interval, client, name):
+def do_main_loop(interval, client, name):
     """Main loop of the monitord service"""
 
     try:
         client.create_container(client.container)
     except ClientError as error:
         if error.status != 202:  # Ignore container already exists errors
-            raise error
+            raise
         else:
             syslog.syslog(syslog.LOG_WARNING,
                           "Container: `%s' already exists." % client.container)
+
+    monitor = tempfile.NamedTemporaryFile()
+    icaas = subprocess.Popen(['/bin/bash', get_script('icaas')],
+                             stdout=monitor, stderr=monitor)
 
     # Shut down gracefully on a SIGTERM or a SIGINT signal
     def terminate(signum, frame):
@@ -156,11 +147,18 @@ def do_main_loop(monitor, interval, client, name):
     cnt = 0
     while True:
         cnt += 1
-        with open(monitor, "r") as m:
+        with open(monitor.name, "r") as m:
             client.upload_object(name, m)
         syslog.syslog(syslog.LOG_NOTICE,
-                      'uploaded monitoring file: `%s for the %d time' %
-                      (monitor, cnt))
+                      'uploaded monitoring file for the %d time' % cnt)
+        if icaas.poll():
+            if icaas.returncode == 0:
+                return True
+            else:
+                with open(monitor.name, "r") as m:
+                    sys.stderr.write("".join(m.readlines()))
+                return False
+
         time.sleep(interval)
 
 
@@ -169,14 +167,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="Monitoring daemon for icaas",
                                      version=version)
-    parser.add_argument('file', help='file to monitor')
     parser.add_argument("-d", "--daemonize", dest="daemonize", default=False,
                         action="store_true",
                         help="detach the process from the shell")
-    parser.add_argument("-e", "--export-manifest", dest="export",
-                        metavar="FILE", default='/var/lib/icaas/manifest.sh',
-                        help="write manifest in shell sourceable format on "
-                        "this file [%(default)s]")
     parser.add_argument("-m", "--manifest", dest="manifest",
                         metavar="MANIFEST", default="/etc/icaas/manifest.cfg",
                         help="specifies the name of the manifest file. The "
@@ -190,11 +183,6 @@ def main():
         error("Prοgram is already running. If this is not the case, please "
               "delete %s" % PID)
         sys.exit(2)
-
-    if not os.path.isfile(args.file):
-        parser.error("file to monitor not found")
-
-    args.file = os.path.realpath(args.file)
 
     if not os.path.isfile(args.manifest):
         parser.error("Manifest file: `%s' not found. Use -m to specify a "
@@ -242,7 +230,11 @@ def main():
         pid.write("%d\n" % os.getpid())
 
     try:
-        save_manifest(manifest, args.export)
+        # Export manifest to environment variables
+        for section in manifest:
+            for key, value in manifest[section].items():
+                name = "ICAAS_%s_%s" % (section.upper(), key.upper())
+                os.environ[name] = value
 
         # Use SIGHUP to unblock from the sleep if necessary
         signal.signal(signal.SIGHUP, lambda x, y: None)
@@ -255,7 +247,11 @@ def main():
             os.kill(os.getpid(), signal.SIGSTOP)
             del os.environ['ICAAS_MONITOR_SIGSTOP']
 
-        do_main_loop(args.file, args.interval, pithos, logname)
+        if do_main_loop(args.interval, pithos, logname):
+            report_success(status)
+        else:
+            report_error(status,
+                         "Image creation failed. Check the log for more info")
     finally:
         os.unlink(PID)
 
