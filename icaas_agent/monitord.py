@@ -109,7 +109,7 @@ def do_main_loop(interval, client, name):
             client.upload_object(name, m)
         syslog.syslog(syslog.LOG_NOTICE,
                       'uploaded monitoring file for the %d time' % cnt)
-        if icaas.poll():
+        if icaas.poll() is not None:
             if icaas.returncode == 0:
                 return True
             else:
