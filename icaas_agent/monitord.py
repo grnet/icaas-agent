@@ -25,13 +25,11 @@ import argparse
 import sys
 import os
 import ConfigParser
-import requests
 import signal
 import daemon
 import time
 import subprocess
 import syslog
-import json
 import tempfile
 
 from kamaki.clients import ClientError
@@ -41,6 +39,7 @@ from kamaki.clients.pithos import PithosClient
 
 from icaas_agent import __version__ as version
 from icaas_agent.scripts import get_script
+from icaas_agent.report import Report
 
 CERTS = '/etc/ssl/certs/ca-certificates.crt'
 NAME = os.path.basename(sys.argv[0])
@@ -58,6 +57,7 @@ def read_manifest(manifest):
 
     config = ConfigParser.ConfigParser()
 
+    syslog.syslog(syslog.LOG_INFO, "Reading manifest file: `%s'" % manifest)
     if len(config.read(manifest)) == 0:
         error("Manifest file: `%s' is not parsable" % manifest)
         sys.exit(2)
@@ -76,66 +76,24 @@ def read_manifest(manifest):
     return {'service': service, 'image': image}
 
 
-def report_error(url, message):
-    """Report an error to the icaas service"""
-
-    error(message)
-    data = {'status': "ERROR", 'reason': "%s: %s" % (NAME, message)}
-    headers = {'Content-type': 'application/json'}
-    request = requests.put(url, data=json.dumps(data), headers=headers)
-    return request.ok
-
-
-def report_success(url):
-    """Report that the icaas service finished successfully"""
-
-    data = {'status': "COMPLETED"}
-    headers = {'Content-type': 'application/json'}
-    request = requests.put(url, data=json.dumps(data), headers=headers)
-    return request.ok
-
-
-def validate_manifest(manifest):
-    """Validate the data found in the manifest"""
-
-    msg = "%s is missing from the %s section of the manifest"
-
-    if 'status' not in manifest['service']:
-        error(msg % ("status", "service"))
-        return False
-    status = manifest['service']['status']
-
-    for key in 'url', 'token', 'log', 'status':
-        if key not in manifest['service']:
-            report_error(status, msg % (key, 'service'))
-            return False
-
-    for key in 'url', 'name', 'object':
-        if key not in manifest['image']:
-            report_error(status, msg % (key, 'image'))
-            return False
-
-    return True
-
-
 def do_main_loop(interval, client, name):
     """Main loop of the monitord service"""
 
     try:
         client.create_container(client.container)
-    except ClientError as error:
-        if error.status != 202:  # Ignore container already exists errors
+    except ClientError as err:
+        if err.status != 202:  # Ignore container already exists errors
             raise
         else:
             syslog.syslog(syslog.LOG_WARNING,
                           "Container: `%s' already exists." % client.container)
 
-    monitor = tempfile.NamedTemporaryFile()
+    monitor = tempfile.NamedTemporaryFile(prefix='icaas-log-')
     icaas = subprocess.Popen(['/bin/bash', get_script('icaas')],
                              stdout=monitor, stderr=monitor)
 
-    # Shut down gracefully on a SIGTERM or a SIGINT signal
     def terminate(signum, frame):
+        """Shut down gracefully on a SIGTERM or a SIGINT signal"""
         name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
         syslog.syslog(syslog.LOG_NOTICE,
                       "Gracefully shutting down on a %s signal" % name)
@@ -162,8 +120,8 @@ def do_main_loop(interval, client, name):
         time.sleep(interval)
 
 
-def main():
-    """Entry point for icaas-monitord"""
+def get_args():
+    """Get input arguments"""
 
     parser = argparse.ArgumentParser(description="Monitoring daemon for icaas",
                                      version=version)
@@ -191,20 +149,51 @@ def main():
     if args.interval < 1:
         parser.error("Interval must be at least 1")
 
-    syslog.syslog(syslog.LOG_INFO,
-                  "Reading manifest file: `%s'" % args.manifest)
+    return args
+
+
+def main():
+    """Entry point for icaas-monitord"""
+
+    args = get_args()
+
     manifest = read_manifest(args.manifest)
 
-    if not validate_manifest(manifest):
+    if 'status' not in manifest['service']:
+        sys.stderr.write('"status" is missing from the service section of the '
+                         'manifest')
         sys.exit(3)
 
+    if 'insecure' in manifest and manifest['insecure'].lower() == 'true':
+        verify = False
+    else:
+        verify = True
+
+    report = Report(manifest['service']['status'], verify=verify,
+                    log=sys.stderr)
+
+    def missing_key(key, section):
+        """missing key message"""
+        return "`%s' is missing from the `%s' section of the manifest" % \
+            (key, section)
+
+    # Validate the manifest
+    for key in 'url', 'token', 'log', 'status':
+        if key not in manifest['service']:
+            report.error(missing_key(key, 'service'))
+            sys.exit(3)
+
+    for key in 'url', 'name', 'object':
+        if key not in manifest['image']:
+            report.error(missing_key(key, 'image'))
+            sys.exit(3)
+
     service = manifest['service']
-    status = service['status']
 
     try:
         container, logname = service['log'].split('/', 1)
     except ValueError:
-        report_error(status, 'Incorrect format for log entry in manifest file')
+        report.error('Incorrect format for log entry in manifest file')
 
     # Use the systems certificates
     https.patch_with_certs(CERTS)
@@ -213,7 +202,7 @@ def main():
     try:
         account.authenticate()
     except AstakosClientError as err:
-        report_error(status, "Astakos: %s" % err)
+        report.error("Astakos: %s" % err)
         sys.exit(3)
 
     pithos = PithosClient(
@@ -248,10 +237,9 @@ def main():
             del os.environ['ICAAS_MONITOR_SIGSTOP']
 
         if do_main_loop(args.interval, pithos, logname):
-            report_success(status)
+            report.success()
         else:
-            report_error(status,
-                         "Image creation failed. Check the log for more info")
+            report.error("Image creation failed. Check the log for more info")
     finally:
         os.unlink(PID)
 
