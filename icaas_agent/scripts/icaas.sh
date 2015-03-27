@@ -17,6 +17,9 @@
 
 set -e
 
+NAME="$0"
+DIRNAME=$(dirname $NAME)
+
 error() { echo "$(date) [ERROR] $@" >&2; exit 1; }
 warn() { echo "$(date) [WARNING] $@" >&2; }
 info() { echo "$(date) [INFO] $@" >&2; }
@@ -44,16 +47,22 @@ cd -
 
 IMAGE=/var/tmp/$BASENAME/$BASENAME.vmdk
 
-info "Creating image with snf-image-creator"
+info "Starting snf-image-creator"
 
 if [ "$ICAAS_IMAGE_PUBLIC" = "True" ]; then
     public="--public"
 fi
 
-snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" -t "$ICAAS_SERVICE_TOKEN" \
-    -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" "$IMAGE"
+host_run=$(mktemp)
+echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host-run" > "$host_run"
+chmod +x "$host_run"
 
-info "Image Creator as a Service finished"
+snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" \
+    -t "$ICAAS_SERVICE_TOKEN" -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" \
+    -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" \
+    --add-timestamp --host-run="$host_run" "$IMAGE"
+
+info "Image creation finished"
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
 
