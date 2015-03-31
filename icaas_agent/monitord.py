@@ -89,7 +89,7 @@ def do_main_loop(interval, client, name):
                           "Container: `%s' already exists." % client.container)
 
     monitor = tempfile.NamedTemporaryFile(prefix='icaas-log-')
-    icaas = subprocess.Popen(['/bin/bash', get_script('icaas')],
+    icaas = subprocess.Popen(['/bin/bash', get_script('create_image')],
                              stdout=monitor, stderr=monitor)
 
     def terminate(signum, frame):

@@ -37,7 +37,7 @@ setup(
     install_requires=['kamaki>=0.9', 'requests', 'python-daemon'],
     entry_points={
         'console_scripts': [
-                'icaas-monitord = icaas_agent.monitord:main']
+                'icaas = icaas_agent.monitord:main']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
