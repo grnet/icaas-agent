@@ -1,2 +1,3 @@
-include icaas-agent/scripts/*.sh
+include icaas_agent/scripts/*.sh
+include icaas_agent/scripts/host_run/*
 include AUTHORS LICENSE README.md

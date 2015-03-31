@@ -54,7 +54,7 @@ if [ "$ICAAS_IMAGE_PUBLIC" = "True" ]; then
 fi
 
 host_run=$(mktemp)
-echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host-run" > "$host_run"
+echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host_run" > "$host_run"
 chmod +x "$host_run"
 
 snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" \
