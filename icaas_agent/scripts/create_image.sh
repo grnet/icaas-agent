@@ -20,6 +20,23 @@ set -e
 NAME="$0"
 DIRNAME=$(dirname $NAME)
 
+CLEANUP=( )
+
+cleanup() {
+    trap - EXIT
+    for cmd in "${CLEANUP[@]}"; do
+        $cmd
+    done
+}
+
+trap cleanup EXIT
+
+add_cleanup() {
+    local cmd=""
+    for arg; do cmd+=$(printf "%q " "$arg"); done
+    CLEANUP=( "$cmd" "${CLEANUP[@]}" )
+}
+
 error() { echo "$(date) [ERROR] $@" >&2; exit 1; }
 warn() { echo "$(date) [WARNING] $@" >&2; }
 info() { echo "$(date) [INFO] $@" >&2; }
@@ -55,6 +72,7 @@ fi
 
 host_run=$(mktemp)
 echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host_run" > "$host_run"
+add_cleanup rm -f "$host_run"
 chmod +x "$host_run"
 
 snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" \
