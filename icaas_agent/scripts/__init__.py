@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015 GRNET S.A.
+# Copyright (C) 2011-2014 GRNET S.A.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,8 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Package for the image creator as a service agent"""
+"""This package hosts bash scripts that need to be executed by the agent."""
 
-from icaas_agent.version import __version__
+import sys
+import os
+
+
+def get_script(name):
+    """Returns the full path of a internal script"""
+    dirname = os.path.dirname(sys.modules[__name__].__file__)
+    return "%s%s%s.sh" % (dirname, os.sep, name)
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :

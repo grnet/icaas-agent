@@ -34,10 +34,10 @@ setup(
     license='GNU GPLv3',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['kamaki>=0.9'],
+    install_requires=['kamaki>=0.9', 'requests', 'python-daemon'],
     entry_points={
         'console_scripts': [
-                'icaas-monitord = icaas_agent.monitord:main']
+                'icaas = icaas_agent.monitord:main']
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -47,8 +47,7 @@ setup(
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7'],
-    keywords = 'cloud IaaS OS images'
+    keywords='cloud IaaS OS images'
 )
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :

@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Copyright (C) 2015 GRNET S.A.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+if [ "$SNF_IMAGE_CREATOR_METADATA_OS" != bitnami ]; then
+    echo "Quiting... not a bitnami image!" >&2
+    exit 0
+fi
+
+# Enable ssh
+mv etc/init/ssh.conf.back etc/init/ssh.conf
+
+# Do not force a password change. The password will be locked by
+# snf-image-creator and reset by synnefo
+rm -f home/bitnami/change-password.sh
+
+# Fix IP address fetching code
+sed -i 's/ipaddress=.*/ipaddress=$(ifconfig | grep "inet addr"| awk '"'"'NR==1 {print $2}'"'"' | awk '"'"'BEGIN { FS=":" } { print $2 }'"'"')/' etc/init.d/welcome
+
+cat >> root/firstboot.sh <<EOF
+export DEBIAN_FRONTEND=noninteractive
+/usr/bin/apt-get -y update
+
+# Add Network Manager in the first boot
+/usr/bin/apt-get -y install network-manager --no-install-recommends
+
+# Install acpid
+/usr/bin/apt-get -y install acpid
+echo '/sbin/shutdown -h now "Power button pressed"' > /etc/acpi/powerbtn.sh
+EOF
+
+# vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
+
