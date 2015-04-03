@@ -52,17 +52,16 @@ fi
 CONTAINER=${ICAAS_IMAGE_OBJECT%/*}
 OBJECT=${ICAAS_IMAGE_OBJECT#*/}
 
+TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
+add_cleanup rm -rf "$TMP"
+
 info "Downloading image from: $ICAAS_IMAGE_URL"
-curl -L "$ICAAS_IMAGE_URL" > "/var/tmp/$FILENAME"
+curl -L "$ICAAS_IMAGE_URL" > "$TMP/$FILENAME"
 
 info "Unpacking zip file"
-cd /var/tmp;
-rm -rf /var/tmp/$BASENAME;
-unzip -o -u /var/tmp/$FILENAME;
-rm -f "!$";
-cd -
+unzip -o -u "$TMP/$FILENAME" -d "$TMP"
 
-IMAGE=/var/tmp/$BASENAME/$BASENAME.vmdk
+IMAGE="$TMP/$BASENAME/$BASENAME.vmdk"
 
 info "Starting snf-image-creator"
 
