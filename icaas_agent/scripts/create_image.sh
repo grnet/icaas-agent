@@ -77,8 +77,8 @@ chmod +x "$host_run"
 
 snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" \
     -t "$ICAAS_SERVICE_TOKEN" -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" \
-    -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" \
-    --add-timestamp --host-run="$host_run" "$IMAGE"
+    -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" --no-snapshot --add-timestamp \
+    --host-run="$host_run" "$IMAGE"
 
 info "Image creation finished"
 
