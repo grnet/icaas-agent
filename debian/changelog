@@ -1,3 +1,9 @@
+icaas-agent (0.1-4~trusty) trusty; urgency=medium
+
+  * Add missing unzip dependency
+
+ -- Nikos Skalkotos <skalkoto@grnet.gr>  Wed, 08 Apr 2015 16:56:56 +0300
+
 icaas-agent (0.1-3~trusty) trusty; urgency=medium
 
   * Change python-kamaki dependency to kamaki
@@ -15,6 +21,7 @@ icaas-agent (0.1-1~trusty) trusty; urgency=medium
   * release build
 
  -- Nikos Skalkotos <skalkoto@grnet.gr>  Fri, 03 Apr 2015 18:30:56 +0300
+
 
 
 
