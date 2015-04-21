@@ -1,3 +1,9 @@
+icaas-agent (0.1-5~trusty) trusty; urgency=medium
+
+  * Start the service after network-manager starts
+
+ -- Nikos Skalkotos <skalkoto@grnet.gr>  Tue, 21 Apr 2015 12:00:08 +0300
+
 icaas-agent (0.1-4~trusty) trusty; urgency=medium
 
   * Add missing unzip dependency
@@ -21,6 +27,7 @@ icaas-agent (0.1-1~trusty) trusty; urgency=medium
   * release build
 
  -- Nikos Skalkotos <skalkoto@grnet.gr>  Fri, 03 Apr 2015 18:30:56 +0300
+
 
 
 
