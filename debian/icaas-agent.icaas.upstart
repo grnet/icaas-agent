@@ -2,8 +2,8 @@
 
 description "ICaaS agent"
 
-start on runlevel [2345]
-stop on runlevel [!2345]
+start on started network-manager
+stop on stopping network-manager
 
 umask 022
 
