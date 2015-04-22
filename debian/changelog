@@ -1,3 +1,9 @@
+icaas-agent (0.1-6~trusty) trusty; urgency=medium
+
+  * Check if the network is up before starting the service
+
+ -- Nikos Skalkotos <skalkoto@grnet.gr>  Wed, 22 Apr 2015 15:12:34 +0300
+
 icaas-agent (0.1-5~trusty) trusty; urgency=medium
 
   * Start the service after network-manager starts
@@ -27,6 +33,7 @@ icaas-agent (0.1-1~trusty) trusty; urgency=medium
   * release build
 
  -- Nikos Skalkotos <skalkoto@grnet.gr>  Fri, 03 Apr 2015 18:30:56 +0300
+
 
 
 
