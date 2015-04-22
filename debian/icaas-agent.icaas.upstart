@@ -2,8 +2,8 @@
 
 description "ICaaS agent"
 
-start on started network-manager
-stop on stopping network-manager
+start on runlevel [2345]
+stop on runlevel [!2345]
 
 umask 022
 
@@ -12,12 +12,23 @@ expect stop
 
 pre-start script
     test -f /.icaas || { stop; exit 0; }
-    test -f /etc/icaas/manifest.cfg || { stop; exit 1; }
+    test -f /etc/icaas/manifest.cfg || { stop; echo "The manifest file missing!" >&2 ; exit 1; }
+
+    # Wait for the DNS to come up
+    for i in 0 1 2 4 8; do
+        sleep $i
+        if /usr/bin/curl -4 -I -s -S http://www.google.com > /dev/null; then
+             exit 0
+        fi
+    done
+    stop
+    echo "Network connection failed!" >&2
+    exit 2
 end script
 
 exec /usr/bin/icaas -m /etc/icaas/manifest.cfg
 
-post-stop script
+post-start script
     rm -f /.icaas
 end script
 
