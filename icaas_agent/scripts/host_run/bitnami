@@ -21,9 +21,6 @@ if [ "$SNF_IMAGE_CREATOR_METADATA_OS" != bitnami ]; then
     exit 0
 fi
 
-# Enable ssh
-mv etc/init/ssh.conf.back etc/init/ssh.conf
-
 # Do not force a password change. The password will be locked by
 # snf-image-creator and reset by synnefo
 rm -f home/bitnami/change-password.sh
@@ -32,6 +29,10 @@ rm -f home/bitnami/change-password.sh
 sed -i 's/ipaddress=.*/ipaddress=$(ifconfig | grep "inet addr"| awk '"'"'NR==1 {print $2}'"'"' | awk '"'"'BEGIN { FS=":" } { print $2 }'"'"')/' etc/init.d/welcome
 
 cat >> root/firstboot.sh <<EOF
+# Enable ssh
+/bin/mv /etc/init/ssh.conf.back /etc/init/ssh.conf
+service ssh restart
+
 export DEBIAN_FRONTEND=noninteractive
 /usr/bin/apt-get -y update
 
