@@ -1,3 +1,9 @@
+icaas-agent (0.1.1-1~trusty) trusty; urgency=medium
+
+  * New upstream version
+
+ -- Nikos Skalkotos <skalkoto@grnet.gr>  Thu, 23 Apr 2015 17:14:41 +0300
+
 icaas-agent (0.1-6~trusty) trusty; urgency=medium
 
   * Check if the network is up before starting the service
@@ -33,9 +39,4 @@ icaas-agent (0.1-1~trusty) trusty; urgency=medium
   * release build
 
  -- Nikos Skalkotos <skalkoto@grnet.gr>  Fri, 03 Apr 2015 18:30:56 +0300
-
-
-
-
-
 
