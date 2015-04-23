@@ -106,7 +106,7 @@ def do_main_loop(interval, client, name):
     while True:
         cnt += 1
         with open(monitor.name, "r") as m:
-            client.upload_object(name, m)
+            client.upload_object(name, m, content_type="text/plain")
         syslog.syslog(syslog.LOG_NOTICE,
                       'uploaded monitoring file for the %d time' % cnt)
         if icaas.poll() is not None:
