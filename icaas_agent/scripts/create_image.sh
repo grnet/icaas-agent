@@ -49,7 +49,7 @@ if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9.-]+\.zip ]]; then
     error "$FILENAME is not a bitnami image"
 fi
 
-CONTAINER=${ICAAS_IMAGE_OBJECT%/*}
+CONTAINER=${ICAAS_IMAGE_OBJECT%%/*}
 OBJECT=${ICAAS_IMAGE_OBJECT#*/}
 
 TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)

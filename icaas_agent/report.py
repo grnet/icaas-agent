@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""This module is responsible for the communication will the service that the
-image creation"""
+"""This module is responsible for the communication with the icaas service"""
 
 from __future__ import print_function
 
