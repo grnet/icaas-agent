@@ -164,6 +164,11 @@ def main():
                          'manifest')
         sys.exit(3)
 
+    if len(manifest['service']['status'].split('#')) != 2:
+        sys.stderr.write('service/status in manifest not in <URL>#<TOKEN> '
+                         'format')
+        sys.exit(3)
+
     if 'insecure' in manifest and manifest['insecure'].lower() == 'true':
         verify = False
     else:

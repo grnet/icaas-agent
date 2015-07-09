@@ -29,10 +29,11 @@ class Report(object):
     """Report the status to the service"""
     def __init__(self, url, verify=True, log=None):
         """Initialize the class"""
-        self.url = url
+        self.url, token = url.split('#')
         self.verify = verify
         self.log = log
-        self.headers = {'Content-type': 'application/json'}
+        self.headers = {'Content-type': 'application/json',
+                        'x-icaas-token': token}
 
     def error(self, reason):
         """Report an error"""
