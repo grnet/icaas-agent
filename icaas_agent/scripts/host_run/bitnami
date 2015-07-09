@@ -21,11 +21,8 @@ if [ "$SNF_IMAGE_CREATOR_METADATA_OS" != bitnami ]; then
     exit 0
 fi
 
-# Enable ssh
-mv etc/init/ssh.conf.back etc/init/ssh.conf
-
 # Do not force a password change. The password will be locked by
-# snf-image-creator and reset by synnefo
+# snf-image-creator and reset by Synnefo during the deployment
 rm -f home/bitnami/change-password.sh
 
 # Fix IP address fetching code
@@ -41,6 +38,10 @@ export DEBIAN_FRONTEND=noninteractive
 # Install acpid
 /usr/bin/apt-get -y install acpid
 echo '/sbin/shutdown -h now "Power button pressed"' > /etc/acpi/powerbtn.sh
+
+# Enable ssh and recreate the keys just to be on the safe side
+/bin/mv /etc/init/ssh.conf.back /etc/init/ssh.conf
+dpkg-reconfigure -fnoninteractive -pcritical openssh-server
 EOF
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :

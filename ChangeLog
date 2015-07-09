@@ -1,0 +1,10 @@
+2015-04-24, v0.1.2
+	* Rebuild ssh keys in the end of the first boot script
+	* Fix bugs
+
+2015-04-23, v0.1.1
+	* Add contnet type to the log file that gets uploaded
+	* Exclude the DeleteSSHKeys task when registering the image
+
+2015-04-03, v0.1
+	* Initial Release

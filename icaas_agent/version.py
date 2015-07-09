@@ -1,8 +1,8 @@
 
-__version__ = "0.0next"
+__version__ = "0.1.2next"
 __version_vcs_info__ = {
     'branch': 'develop',
-    'revid': '9c426b6',
-    'revno': 1}
+    'revid': '3e9739a',
+    'revno': 44}
 __version_user_email__ = "skalkoto@grnet.gr"
 __version_user_name__ = "Nikos Skalkotos"

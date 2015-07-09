@@ -49,7 +49,7 @@ if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9.-]+\.zip ]]; then
     error "$FILENAME is not a bitnami image"
 fi
 
-CONTAINER=${ICAAS_IMAGE_OBJECT%/*}
+CONTAINER=${ICAAS_IMAGE_OBJECT%%/*}
 OBJECT=${ICAAS_IMAGE_OBJECT#*/}
 
 TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
@@ -77,6 +77,7 @@ chmod +x "$host_run"
 snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" \
     -t "$ICAAS_SERVICE_TOKEN" -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" \
     -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" \
+    -m EXCLUDE_TASK_DeleteSSHKeys=yes \
     --add-timestamp --host-run="$host_run" "$IMAGE"
 
 info "Image creation finished"
