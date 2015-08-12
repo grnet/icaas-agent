@@ -61,7 +61,7 @@ curl -L "$ICAAS_IMAGE_URL" > "$TMP/$FILENAME"
 info "Unpacking zip file"
 unzip -o -u "$TMP/$FILENAME" -d "$TMP"
 
-IMAGE="$TMP/$BASENAME/$BASENAME.vmdk"
+IMAGE="$(ls -1 $TMP/$BASENAME/*.vmdk | tail -1)"
 
 info "Starting snf-image-creator"
 
