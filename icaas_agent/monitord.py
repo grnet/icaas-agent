@@ -177,6 +177,8 @@ def main():
     report = Report(manifest['service']['status'], verify=verify,
                     log=sys.stderr)
 
+    report.progress("Booted!")
+
     def missing_key(key, section):
         """missing key message"""
         return "`%s' is missing from the `%s' section of the manifest" % \
