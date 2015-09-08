@@ -62,18 +62,22 @@ def read_manifest(manifest):
         error("Manifest file: `%s' is not parsable" % manifest)
         sys.exit(2)
 
-    assert 'service' in config.sections()
-    assert 'image' in config.sections()
-
     service = {}
-    for key, value in config.items('service'):
-        service[key] = value
+    if 'service' in config.sections():
+        for key, value in config.items('service'):
+            service[key] = value
 
     image = {}
-    for key, value in config.items('image'):
-        image[key] = value
+    if 'image' in config.sections():
+        for key, value in config.items('image'):
+            image[key] = value
 
-    return {'service': service, 'image': image}
+    synnefo = {}
+    if 'synnefo' in config.sections():
+        for key, value in config.items('synnefo'):
+            synnefo[key] = value
+
+    return {'service': service, 'synnefo': synnefo, 'image': image}
 
 
 def do_main_loop(interval, client, name):
@@ -159,23 +163,22 @@ def main():
 
     manifest = read_manifest(args.manifest)
 
-    if 'status' not in manifest['service']:
-        sys.stderr.write('"status" is missing from the service section of the '
-                         'manifest')
-        sys.exit(3)
+    missing = '"%s" is missing from the "%s" section of the manifest\n'
 
-    if len(manifest['service']['status'].split('#')) != 2:
-        sys.stderr.write('service/status in manifest not in <URL>#<TOKEN> '
-                         'format')
-        sys.exit(3)
+    for item in 'status', 'token':
+        if item not in manifest['service']:
+            print(missing % (item, 'service'), file=sys.stderr)
+            sys.exit(3)
 
-    if 'insecure' in manifest and manifest['insecure'].lower() == 'true':
+    if 'insecure' in manifest['service'] and \
+            manifest['service']['insecure'].lower() == 'true':
         verify = False
     else:
         verify = True
 
-    report = Report(manifest['service']['status'], verify=verify,
-                    log=sys.stderr)
+    report = Report(manifest['service']['status'],
+                    manifest['service']['token'],
+                    verify=verify, log=sys.stderr)
 
     report.progress("Booted!")
 
@@ -185,27 +188,27 @@ def main():
             (key, section)
 
     # Validate the manifest
-    for key in 'url', 'token', 'log', 'status':
-        if key not in manifest['service']:
-            report.error(missing_key(key, 'service'))
+    for key in 'url', 'token', 'log':
+        if key not in manifest['synnefo']:
+            report.error(missing_key(key, 'synnefo'))
             sys.exit(3)
 
-    for key in 'url', 'name', 'object':
+    for key in 'src', 'name', 'object':
         if key not in manifest['image']:
             report.error(missing_key(key, 'image'))
             sys.exit(3)
 
-    service = manifest['service']
+    synnefo = manifest['synnefo']
 
     try:
-        container, logname = service['log'].split('/', 1)
+        container, logname = synnefo['log'].split('/', 1)
     except ValueError:
         report.error('Incorrect format for log entry in manifest file')
 
     # Use the systems certificates
     https.patch_with_certs(CERTS)
 
-    account = AstakosClient(service['url'], service['token'])
+    account = AstakosClient(synnefo['url'], synnefo['token'])
     try:
         account.authenticate()
     except AstakosClientError as err:

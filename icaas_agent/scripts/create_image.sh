@@ -43,8 +43,8 @@ info() { echo "$(date) [INFO] $@" >&2; }
 
 info "Starting Image Creator as a Service"
 
-FILENAME=$(basename "$ICAAS_IMAGE_URL")
-BASENAME=$(basename "$ICAAS_IMAGE_URL" .zip)
+FILENAME=$(basename "$ICAAS_IMAGE_SRC")
+BASENAME=$(basename "$ICAAS_IMAGE_SRC" .zip)
 if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9.-]+\.zip ]]; then
     error "$FILENAME is not a bitnami image"
 fi
@@ -55,8 +55,8 @@ OBJECT=${ICAAS_IMAGE_OBJECT#*/}
 TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
 add_cleanup rm -rf "$TMP"
 
-info "Downloading image from: $ICAAS_IMAGE_URL"
-curl -L "$ICAAS_IMAGE_URL" > "$TMP/$FILENAME"
+info "Downloading image from: $ICAAS_IMAGE_SRC"
+curl -L "$ICAAS_IMAGE_SRC" > "$TMP/$FILENAME"
 
 info "Unpacking zip file"
 unzip -o -u "$TMP/$FILENAME" -d "$TMP"
@@ -74,8 +74,8 @@ echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host_run" > "$host_run"
 add_cleanup rm -f "$host_run"
 chmod +x "$host_run"
 
-snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SERVICE_URL" \
-    -t "$ICAAS_SERVICE_TOKEN" -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" \
+snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SYNNEFO_URL" \
+    -t "$ICAAS_SYNNEFO_TOKEN" -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" \
     -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" \
     -m EXCLUDE_TASK_DeleteSSHKeys=yes \
     --add-timestamp --host-run="$host_run" "$IMAGE"

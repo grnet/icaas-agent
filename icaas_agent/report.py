@@ -27,9 +27,9 @@ import json
 
 class Report(object):
     """Report the status to the service"""
-    def __init__(self, url, verify=True, log=None):
+    def __init__(self, url, token, verify=True, log=None):
         """Initialize the class"""
-        self.url, token = url.split('#')
+        self.url = url
         self.verify = verify
         self.log = log
         self.headers = {'Content-type': 'application/json',
