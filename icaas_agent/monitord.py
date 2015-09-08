@@ -114,9 +114,17 @@ def do_main_loop(interval, client, name):
         syslog.syslog(syslog.LOG_NOTICE,
                       'uploaded monitoring file for the %d time' % cnt)
         if icaas.poll() is not None:
+            # The script has finished. Upload the log file for one last time to
+            # make sure all the script output is upstream
+            cnt += 1
+            with open(monitor.name, "r") as m:
+                client.upload_object(name, m, content_type="text/plain")
+            syslog.syslog(syslog.LOG_NOTICE,
+                          'uploaded monitoring file for the %d time' % cnt)
+
             if icaas.returncode == 0:
                 return True
-            else:
+            else:  # error
                 with open(monitor.name, "r") as m:
                     sys.stderr.write("".join(m.readlines()))
                 return False
