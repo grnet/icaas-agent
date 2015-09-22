@@ -49,9 +49,6 @@ if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9.-]+\.zip ]]; then
     error "$FILENAME is not a bitnami image"
 fi
 
-CONTAINER=${ICAAS_IMAGE_OBJECT%%/*}
-OBJECT=${ICAAS_IMAGE_OBJECT#*/}
-
 TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
 add_cleanup rm -rf "$TMP"
 
@@ -74,8 +71,9 @@ echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host_run" > "$host_run"
 add_cleanup rm -f "$host_run"
 chmod +x "$host_run"
 
-snf-mkimage $public -u "$OBJECT" -a "$ICAAS_SYNNEFO_URL" \
-    -t "$ICAAS_SYNNEFO_TOKEN" -r "$ICAAS_IMAGE_NAME" --container "$CONTAINER" \
+snf-mkimage $public -u "${ICAAS_IMAGE_OBJECT}" -a "$ICAAS_SYNNEFO_URL" \
+    -t "$ICAAS_SYNNEFO_TOKEN" -r "$ICAAS_IMAGE_NAME" \
+    --container "${ICAAS_IMAGE_CONTAINER}" \
     -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" \
     -m EXCLUDE_TASK_DeleteSSHKeys=yes \
     --add-timestamp --host-run="$host_run" "$IMAGE"

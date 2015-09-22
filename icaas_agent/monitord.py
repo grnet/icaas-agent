@@ -77,7 +77,12 @@ def read_manifest(manifest):
         for key, value in config.items('synnefo'):
             synnefo[key] = value
 
-    return {'service': service, 'synnefo': synnefo, 'image': image}
+    log = {}
+    if 'log' in config.sections():
+        for key, value in config.items('log'):
+            log[key] = value
+
+    return {'service': service, 'synnefo': synnefo, 'image': image, 'log': log}
 
 
 def do_main_loop(interval, client, name):
@@ -196,36 +201,38 @@ def main():
             (key, section)
 
     # Validate the manifest
-    for key in 'url', 'token', 'log':
+    for key in 'url', 'token':
         if key not in manifest['synnefo']:
             report.error(missing_key(key, 'synnefo'))
             sys.exit(3)
 
-    for key in 'src', 'name', 'object':
+    for key in 'src', 'name', 'container', 'object':
         if key not in manifest['image']:
             report.error(missing_key(key, 'image'))
             sys.exit(3)
 
-    synnefo = manifest['synnefo']
-
-    try:
-        container, logname = synnefo['log'].split('/', 1)
-    except ValueError:
-        report.error('Incorrect format for log entry in manifest file')
+    for key in 'container', 'object':
+        if key not in manifest['log']:
+            report.error(missing_key(key, 'log'))
+            sys.exit(3)
 
     # Use the systems certificates
     https.patch_with_certs(CERTS)
 
-    account = AstakosClient(synnefo['url'], synnefo['token'])
+    account = AstakosClient(manifest['synnefo']['url'],
+                            manifest['synnefo']['token'])
     try:
         account.authenticate()
     except AstakosClientError as err:
         report.error("Astakos: %s" % err)
         sys.exit(3)
 
+    user = account.user_info['id'] if 'account' not in manifest['log'] else \
+        manifest['log']['account']
+
     pithos = PithosClient(
         account.get_service_endpoints('object-store')['publicURL'],
-        account.token, account.user_info['id'], container)
+        account.token, user, manifest['log']['container'])
 
     if args.daemonize:
         daemon_context = daemon.DaemonContext(stdin=sys.stdin,
@@ -254,7 +261,7 @@ def main():
             os.kill(os.getpid(), signal.SIGSTOP)
             del os.environ['ICAAS_MONITOR_SIGSTOP']
 
-        if do_main_loop(args.interval, pithos, logname):
+        if do_main_loop(args.interval, pithos, manifest['log']['object']):
             report.success()
         else:
             report.error("Image creation failed. Check the log for more info")
