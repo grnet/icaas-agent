@@ -31,6 +31,7 @@ import time
 import subprocess
 import syslog
 import tempfile
+import requests
 
 from kamaki.clients import ClientError
 from kamaki.clients.utils import https
@@ -62,27 +63,47 @@ def read_manifest(manifest):
         error("Manifest file: `%s' is not parsable" % manifest)
         sys.exit(2)
 
-    service = {}
+    manifest = {}
+    manifest['service'] = {}
     if 'service' in config.sections():
         for key, value in config.items('service'):
-            service[key] = value
+            manifest['service'][key] = value
 
-    image = {}
+    manifest['image'] = {}
     if 'image' in config.sections():
         for key, value in config.items('image'):
-            image[key] = value
+            manifest['image'][key] = value
 
-    synnefo = {}
+    manifest['synnefo'] = {}
     if 'synnefo' in config.sections():
         for key, value in config.items('synnefo'):
-            synnefo[key] = value
+            manifest['synnefo'][key] = value
 
-    log = {}
+    manifest['log'] = {}
     if 'log' in config.sections():
         for key, value in config.items('log'):
-            log[key] = value
+            manifest['log'][key] = value
 
-    return {'service': service, 'synnefo': synnefo, 'image': image, 'log': log}
+    if 'manifest' in config.sections():
+        manifest['manifest'] = {}
+        for key, value in config.items('manifest'):
+            manifest['manifest'][key] = value
+
+        if 'url' in manifest['manifest']:
+            url = manifest['manifest']['url']
+            r = requests.get(url)
+            if r.status_code != requests.codes.ok:
+                error("Fetching manifest from %s failed: (%d) %s" %
+                      (url, r.status_code, r.text))
+                sys.exit(3)
+            try:
+                fetched = r.json()
+                manifest.update(fetched['manifest'])
+            except KeyError:
+                error("Invalid manifest fetching response: %s", r.text)
+                sys.exit(4)
+
+    return manifest
 
 
 def do_main_loop(interval, client, name):
