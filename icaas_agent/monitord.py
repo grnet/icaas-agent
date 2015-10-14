@@ -122,16 +122,6 @@ def do_main_loop(interval, client, name):
     icaas = subprocess.Popen(['/bin/bash', get_script('create_image')],
                              stdout=monitor, stderr=monitor)
 
-    def terminate(signum, frame):
-        """Shut down gracefully on a SIGTERM or a SIGINT signal"""
-        name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
-        syslog.syslog(syslog.LOG_NOTICE,
-                      "Gracefully shutting down on a %s signal" % name)
-        sys.exit(0)
-
-    signal.signal(signal.SIGTERM, terminate)
-    signal.signal(signal.SIGINT, terminate)
-
     cnt = 0
     while True:
         cnt += 1
@@ -281,6 +271,17 @@ def main():
                 "environment variable ICAAS_MONITOR_SIGSTOP is defined")
             os.kill(os.getpid(), signal.SIGSTOP)
             del os.environ['ICAAS_MONITOR_SIGSTOP']
+
+        def terminate(signum, frame):
+            """Shut down gracefully on a SIGTERM or a SIGINT signal"""
+            report.error("Image creation failed. Stopped before completing")
+            name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
+            syslog.syslog(syslog.LOG_NOTICE,
+                          "Gracefully shutting down on a %s signal" % name)
+            sys.exit(0)
+
+        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGINT, terminate)
 
         if do_main_loop(args.interval, pithos, manifest['log']['object']):
             report.success()

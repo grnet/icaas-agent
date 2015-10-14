@@ -60,11 +60,11 @@ TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
 add_cleanup rm -rf "$TMP"
 
 info "Downloading image from: $ICAAS_IMAGE_SRC"
-update_status "Downloading image file..."
+update_status "Downloading source image..."
 curl -L "$ICAAS_IMAGE_SRC" > "$TMP/$FILENAME"
 
 info "Unpacking zip file"
-update_status "Unpacking image archive..."
+update_status "Unpacking source archive..."
 unzip -o -u "$TMP/$FILENAME" -d "$TMP"
 
 IMAGE="$(ls -1 $TMP/$BASENAME/*.vmdk | tail -1)"
