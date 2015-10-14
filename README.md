@@ -4,14 +4,14 @@ icaas-agent
 Overview
 --------
 
-This is a list of tools that will run on the VM that implements the image
-creation as a service functionality.
+This is the software that runs inside the ICaaS Agent VM that implements the
+image creation as a service functionality.
 
 Project Page
 ------------
 
-Please see the [official Synnefo site](http://www.synnefo.org) for more
-information.
+Please see the [official ICaaS documentation](http://www.synnefo.org/docs/icaas/latest)
+for more information.
 
 Contact
 -------
