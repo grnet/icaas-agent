@@ -41,6 +41,13 @@ error() { echo "$(date) [ERROR] $@" >&2; exit 1; }
 warn() { echo "$(date) [WARNING] $@" >&2; }
 info() { echo "$(date) [INFO] $@" >&2; }
 
+update_status() {
+    local details="${*/\"/\\\"}"  # Escape double quotes for json
+    curl -i "$ICAAS_SERVICE_STATUS" -H "X-ICAAS-Token: $ICAAS_SERVICE_TOKEN" \
+        -H 'Content-type: application/json' -X PUT \
+        -d '{"status":"CREATING", "details":"agent: '"$details"'"}'
+}
+
 info "Starting Image Creator as a Service"
 
 FILENAME=$(basename "$ICAAS_IMAGE_SRC")
@@ -53,9 +60,11 @@ TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
 add_cleanup rm -rf "$TMP"
 
 info "Downloading image from: $ICAAS_IMAGE_SRC"
+update_status "Downloading image file..."
 curl -L "$ICAAS_IMAGE_SRC" > "$TMP/$FILENAME"
 
 info "Unpacking zip file"
+update_status "Unpacking image archive..."
 unzip -o -u "$TMP/$FILENAME" -d "$TMP"
 
 IMAGE="$(ls -1 $TMP/$BASENAME/*.vmdk | tail -1)"
@@ -71,6 +80,7 @@ echo -e "#!/bin/sh\nrun-parts -v $DIRNAME/host_run" > "$host_run"
 add_cleanup rm -f "$host_run"
 chmod +x "$host_run"
 
+update_status "Creating image..."
 snf-mkimage $public -u "${ICAAS_IMAGE_OBJECT}" -a "$ICAAS_SYNNEFO_URL" \
     -t "$ICAAS_SYNNEFO_TOKEN" -r "$ICAAS_IMAGE_NAME" \
     --container "${ICAAS_IMAGE_CONTAINER}" \
