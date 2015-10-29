@@ -42,7 +42,10 @@ warn() { echo "$(date) [WARNING] $@" >&2; }
 info() { echo "$(date) [INFO] $@" >&2; }
 
 update_status() {
-    local details="${*/\"/\\\"}"  # Escape double quotes for json
+    local details="${*}"
+    details="${details//\\/\\\\}"  # Escape backslash for json
+    details="${details//\"/\\\"}"  # Escape double quotes for json
+
     curl -i "$ICAAS_SERVICE_STATUS" -H "X-ICAAS-Token: $ICAAS_SERVICE_TOKEN" \
         -H 'Content-type: application/json' -X PUT \
         -d '{"status":"CREATING", "details":"agent: '"$details"'"}'
