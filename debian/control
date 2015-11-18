@@ -9,7 +9,8 @@ Homepage: https://github.com/grnet/icaas-agent
 
 Package: icaas-agent
 Architecture: all
-Depends: ${python:Depends}, snf-image-creator, curl, unzip, network-manager
+Depends: ${python:Depends}, snf-image-creator, curl, unzip, network-manager,
+ iptables, sysstat
 Description: Image Creator as a Service agent
  This is a list of tools that will run on the VM that implements the Image
  Creation as a Service functionality.
