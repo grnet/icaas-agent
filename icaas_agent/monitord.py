@@ -31,6 +31,7 @@ import time
 import subprocess
 import syslog
 import tempfile
+import requests
 
 from kamaki.clients import ClientError
 from kamaki.clients.utils import https
@@ -62,18 +63,47 @@ def read_manifest(manifest):
         error("Manifest file: `%s' is not parsable" % manifest)
         sys.exit(2)
 
-    assert 'service' in config.sections()
-    assert 'image' in config.sections()
+    manifest = {}
+    manifest['service'] = {}
+    if 'service' in config.sections():
+        for key, value in config.items('service'):
+            manifest['service'][key] = value
 
-    service = {}
-    for key, value in config.items('service'):
-        service[key] = value
+    manifest['image'] = {}
+    if 'image' in config.sections():
+        for key, value in config.items('image'):
+            manifest['image'][key] = value
 
-    image = {}
-    for key, value in config.items('image'):
-        image[key] = value
+    manifest['synnefo'] = {}
+    if 'synnefo' in config.sections():
+        for key, value in config.items('synnefo'):
+            manifest['synnefo'][key] = value
 
-    return {'service': service, 'image': image}
+    manifest['log'] = {}
+    if 'log' in config.sections():
+        for key, value in config.items('log'):
+            manifest['log'][key] = value
+
+    if 'manifest' in config.sections():
+        manifest['manifest'] = {}
+        for key, value in config.items('manifest'):
+            manifest['manifest'][key] = value
+
+        if 'url' in manifest['manifest']:
+            url = manifest['manifest']['url']
+            r = requests.get(url)
+            if r.status_code != requests.codes.ok:
+                error("Fetching manifest from %s failed: (%d) %s" %
+                      (url, r.status_code, r.text))
+                sys.exit(3)
+            try:
+                fetched = r.json()
+                manifest.update(fetched['manifest'])
+            except KeyError:
+                error("Invalid manifest fetching response: %s", r.text)
+                sys.exit(4)
+
+    return manifest
 
 
 def do_main_loop(interval, client, name):
@@ -92,16 +122,6 @@ def do_main_loop(interval, client, name):
     icaas = subprocess.Popen(['/bin/bash', get_script('create_image')],
                              stdout=monitor, stderr=monitor)
 
-    def terminate(signum, frame):
-        """Shut down gracefully on a SIGTERM or a SIGINT signal"""
-        name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
-        syslog.syslog(syslog.LOG_NOTICE,
-                      "Gracefully shutting down on a %s signal" % name)
-        sys.exit(0)
-
-    signal.signal(signal.SIGTERM, terminate)
-    signal.signal(signal.SIGINT, terminate)
-
     cnt = 0
     while True:
         cnt += 1
@@ -110,9 +130,17 @@ def do_main_loop(interval, client, name):
         syslog.syslog(syslog.LOG_NOTICE,
                       'uploaded monitoring file for the %d time' % cnt)
         if icaas.poll() is not None:
+            # The script has finished. Upload the log file for one last time to
+            # make sure all the script output is upstream
+            cnt += 1
+            with open(monitor.name, "r") as m:
+                client.upload_object(name, m, content_type="text/plain")
+            syslog.syslog(syslog.LOG_NOTICE,
+                          'uploaded monitoring file for the %d time' % cnt)
+
             if icaas.returncode == 0:
                 return True
-            else:
+            else:  # error
                 with open(monitor.name, "r") as m:
                     sys.stderr.write("".join(m.readlines()))
                 return False
@@ -159,18 +187,24 @@ def main():
 
     manifest = read_manifest(args.manifest)
 
-    if 'status' not in manifest['service']:
-        sys.stderr.write('"status" is missing from the service section of the '
-                         'manifest')
-        sys.exit(3)
+    missing = '"%s" is missing from the "%s" section of the manifest\n'
 
-    if 'insecure' in manifest and manifest['insecure'].lower() == 'true':
+    for item in 'status', 'token':
+        if item not in manifest['service']:
+            print(missing % (item, 'service'), file=sys.stderr)
+            sys.exit(3)
+
+    if 'insecure' in manifest['service'] and \
+            manifest['service']['insecure'].lower() == 'true':
         verify = False
     else:
         verify = True
 
-    report = Report(manifest['service']['status'], verify=verify,
-                    log=sys.stderr)
+    report = Report(manifest['service']['status'],
+                    manifest['service']['token'],
+                    verify=verify, log=sys.stderr)
+
+    report.progress("Booted!")
 
     def missing_key(key, section):
         """missing key message"""
@@ -178,36 +212,38 @@ def main():
             (key, section)
 
     # Validate the manifest
-    for key in 'url', 'token', 'log', 'status':
-        if key not in manifest['service']:
-            report.error(missing_key(key, 'service'))
+    for key in 'url', 'token':
+        if key not in manifest['synnefo']:
+            report.error(missing_key(key, 'synnefo'))
             sys.exit(3)
 
-    for key in 'url', 'name', 'object':
+    for key in 'src', 'name', 'container', 'object':
         if key not in manifest['image']:
             report.error(missing_key(key, 'image'))
             sys.exit(3)
 
-    service = manifest['service']
-
-    try:
-        container, logname = service['log'].split('/', 1)
-    except ValueError:
-        report.error('Incorrect format for log entry in manifest file')
+    for key in 'container', 'object':
+        if key not in manifest['log']:
+            report.error(missing_key(key, 'log'))
+            sys.exit(3)
 
     # Use the systems certificates
     https.patch_with_certs(CERTS)
 
-    account = AstakosClient(service['url'], service['token'])
+    account = AstakosClient(manifest['synnefo']['url'],
+                            manifest['synnefo']['token'])
     try:
         account.authenticate()
     except AstakosClientError as err:
         report.error("Astakos: %s" % err)
         sys.exit(3)
 
+    user = account.user_info['id'] if 'account' not in manifest['log'] else \
+        manifest['log']['account']
+
     pithos = PithosClient(
         account.get_service_endpoints('object-store')['publicURL'],
-        account.token, account.user_info['id'], container)
+        account.token, user, manifest['log']['container'])
 
     if args.daemonize:
         daemon_context = daemon.DaemonContext(stdin=sys.stdin,
@@ -236,7 +272,18 @@ def main():
             os.kill(os.getpid(), signal.SIGSTOP)
             del os.environ['ICAAS_MONITOR_SIGSTOP']
 
-        if do_main_loop(args.interval, pithos, logname):
+        def terminate(signum, frame):
+            """Shut down gracefully on a SIGTERM or a SIGINT signal"""
+            report.error("Image creation failed. Stopped before completing")
+            name = 'SIGINT' if signum == signal.SIGINT else 'SIGTERM'
+            syslog.syslog(syslog.LOG_NOTICE,
+                          "Gracefully shutting down on a %s signal" % name)
+            sys.exit(0)
+
+        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGINT, terminate)
+
+        if do_main_loop(args.interval, pithos, manifest['log']['object']):
             report.success()
         else:
             report.error("Image creation failed. Check the log for more info")

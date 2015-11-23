@@ -1,3 +1,9 @@
+2015-11-23, v0.2
+	* Change manifest API
+	* Allow fetching parts of the manifest from a URL
+	* Add heuristics to compute the image creation progress
+	* Fix bugs
+
 2015-04-24, v0.1.2
 	* Rebuild ssh keys in the end of the first boot script
 	* Fix bugs

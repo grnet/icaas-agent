@@ -27,12 +27,24 @@ import json
 
 class Report(object):
     """Report the status to the service"""
-    def __init__(self, url, verify=True, log=None):
+    def __init__(self, url, token, verify=True, log=None):
         """Initialize the class"""
         self.url = url
         self.verify = verify
         self.log = log
-        self.headers = {'Content-type': 'application/json'}
+        self.headers = {'Content-type': 'application/json',
+                        'x-icaas-token': token}
+
+    def progress(self, details):
+        """Report progress"""
+
+        if self.log is not None:
+            print(details, file=self.log)
+
+        data = {'status': 'CREATING', 'details': 'agent: %s' % details}
+        request = requests.put(self.url, data=json.dumps(data),
+                               headers=self.headers, verify=self.verify)
+        return request.ok
 
     def error(self, reason):
         """Report an error"""
@@ -41,7 +53,7 @@ class Report(object):
 
         if self.log is not None:
             print("ERROR:", reason, file=self.log)
-        data = {'status': 'ERROR', 'reason': reason}
+        data = {'status': 'ERROR', 'details': 'agent: %s' % reason}
         request = requests.put(self.url, data=json.dumps(data),
                                headers=self.headers, verify=self.verify)
         return request.ok
@@ -51,7 +63,8 @@ class Report(object):
 
         if self.log is not None:
             print("Image creation completed!", file=self.log)
-        data = {'status': 'COMPLETED'}
+        details = 'agent: image creation finished'
+        data = {'status': 'COMPLETED', 'details': details}
         request = requests.put(self.url, data=json.dumps(data),
                                headers=self.headers, verify=self.verify)
         return request.ok
