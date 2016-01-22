@@ -77,7 +77,7 @@ if [ -z "$image_kb" ]; then
 fi
 image_kb=$(echo "$image_kb" / 1024 | bc)
 
-if (( ICAAS_PROGRESS_HEURISTIC < 1 )); then
+if [[ ICAAS_PROGRESS_HEURISTIC < 1 ]]; then
     ICAAS_PROGRESS_HEURISTIC=1
 fi
 
@@ -98,7 +98,7 @@ update_status() {
         -d "$status_json"
 }
 
-if (( ICAAS_PROGRESS_INTERVAL < 5 )); then
+if [[ ICAAS_PROGRESS_INTERVAL < 5 ]]; then
     ICAAS_PROGRESS_INTERVAL=5
 fi
 
