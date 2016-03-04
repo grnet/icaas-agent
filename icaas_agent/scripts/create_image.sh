@@ -64,7 +64,7 @@ info "Starting Image Creator as a Service"
 
 FILENAME=$(basename "$ICAAS_IMAGE_SRC")
 BASENAME=$(basename "$ICAAS_IMAGE_SRC" .zip)
-if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9.-]+\.zip ]]; then
+if [[ ! "$FILENAME" =~ ^bitnami-[A-Za-z0-9._-]+\.zip ]]; then
     error "$FILENAME is not a bitnami image"
 fi
 
