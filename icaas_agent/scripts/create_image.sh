@@ -83,7 +83,13 @@ fi
 
 estimated_io="$(echo "( $((image_kb)) "'*'" ${ICAAS_PROGRESS_HEURISTIC} )" | bc)"
 
+PROGRESS_STDOUT=$(mktemp --tmpdir icaas-progress-stdout.XXXXXXXXXX)
+add_cleanup rm -f "$PROGRESS_STDOUT"
+PROGRESS_STDERR=$(mktemp --tmpdir icaas-progress-stderr.XXXXXXXXXX)
+add_cleanup rm -f "$PROGRESS_STDERR"
+
 update_status() {
+    local details status_json
     details="${*}"
     details="${details//\\/\\\\}"  # Escape backslash for json
     details="${details//\"/\\\"}"  # Escape double quotes for json
@@ -93,18 +99,29 @@ update_status() {
         \"agent-progress\": {\
             \"current\": $(get_io_total),\
             \"total\": ${estimated_io} }}"
-    curl -i "$ICAAS_SERVICE_STATUS" -H "X-ICAAS-Token: $ICAAS_SERVICE_TOKEN" \
-        -H 'Content-type: application/json' -X PUT \
-        -d "$status_json"
+    curl -i -X PUT "$ICAAS_SERVICE_STATUS" \
+         -H "X-ICAAS-Token: $ICAAS_SERVICE_TOKEN" \
+         -H 'Content-type: application/json' \
+         -d "$status_json" 2>"$PROGRESS_STDERR" >"$PROGRESS_STDOUT"
+    if ! grep "^HTTP/1.0 204 NO CONTENT" "$PROGRESS_STDOUT" &>/dev/null; then
+        echo "$(date) [ERROR] Progress status update failed!" >&2
+        echo "$(date) [ERROR] DATA:"
+        echo "$status_json" | sed 's/^/[ERROR] /' >&2
+        echo "$(date) [ERROR] STDOUT:" >&2
+        cat "$PROGRESS_STDOUT" | sed 's/^/[ERROR] /' >&2
+        echo "$(date) [ERROR] STDERR:" >&2
+        cat "$PROGRESS_STDERR" | sed 's/^/[ERROR] /'>&2
+    fi
 }
 
 if [[ ICAAS_PROGRESS_INTERVAL < 5 ]]; then
     ICAAS_PROGRESS_INTERVAL=5
 fi
 
-kill_update_progress_loop () {
-    if [ -n "$LOOP_PID" ]; then
-        kill -TERM "$LOOP_PID" || true
+kill_process () {
+    local pid=$1
+    if [ -n "$pid" ]; then
+        kill -TERM "$pid" || true
     fi
 }
 
@@ -116,8 +133,7 @@ update_progress_loop () {
 }
 
 update_progress_loop &
-LOOP_PID=$!
-add_cleanup kill_update_progress_loop
+add_cleanup kill_process $!
 
 info "Downloading image from: $ICAAS_IMAGE_SRC"
 update_status "Downloading image file..."
