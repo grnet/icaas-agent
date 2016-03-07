@@ -259,7 +259,7 @@ def main():
         for section in manifest:
             for key, value in manifest[section].items():
                 name = "ICAAS_%s_%s" % (section.upper(), key.upper())
-                os.environ[name] = value
+                os.environ[name] = str(value)
 
         # Use SIGHUP to unblock from the sleep if necessary
         signal.signal(signal.SIGHUP, lambda x, y: None)
