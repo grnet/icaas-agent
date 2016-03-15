@@ -30,7 +30,12 @@ if [ -f etc/init.d/welcome ]; then
     sed -i 's/ipaddress=.*/ipaddress=$(ifconfig | grep "inet addr"| awk '"'"'NR==1 {print $2}'"'"' | awk '"'"'BEGIN { FS=":" } { print $2 }'"'"')/' etc/init.d/welcome
 fi
 
-cat >> root/firstboot.sh <<EOF
+if [ -f etc/init/ssh.conf.back ]; then
+    mv etc/init/ssh.conf.back etc/init/ssh.conf
+fi
+
+if [ -f root/firstboot.sh ]; then
+    cat >> root/firstboot.sh <<EOF
 export DEBIAN_FRONTEND=noninteractive
 /usr/bin/apt-get -y update
 
@@ -40,11 +45,8 @@ export DEBIAN_FRONTEND=noninteractive
 # Install acpid
 /usr/bin/apt-get -y install acpid
 echo '/sbin/shutdown -h now "Power button pressed"' > /etc/acpi/powerbtn.sh
-
-# Enable ssh and recreate the keys just to be on the safe side
-/bin/mv /etc/init/ssh.conf.back /etc/init/ssh.conf
-dpkg-reconfigure -fnoninteractive -pcritical openssh-server
 EOF
+fi
 
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
 
