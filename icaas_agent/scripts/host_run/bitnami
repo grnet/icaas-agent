@@ -48,5 +48,43 @@ echo '/sbin/shutdown -h now "Power button pressed"' > /etc/acpi/powerbtn.sh
 EOF
 fi
 
+# Create a custom ChangePassword task
+mkdir -p root/snf-image/helper
+cat >> root/snf-image/helper/overwrite_task_ChangePassword <<EOF
+#!/bin/bash
+
+source /usr/share/snf-image-helper/common.sh
+
+set -e
+
+if [ \$1 = post-exec ]; then
+    exit 0
+fi
+
+if [ -n "\${SNF_IMAGE_PASSWD_HASH+dummy}" ]; then
+    warn "Can't handle password hashes"
+    exit 101
+fi
+
+if [ -z "\${SNF_IMAGE_PASSWD+dummy}" ]; then
+    warn "Not running. Password not set"
+    exit 101
+fi
+
+if [ -f "\$SNF_IMAGE_TARGET/opt/bitnami/scripts/init/functions" ]; then
+    if grep vm_get_applications_password "\$SNF_IMAGE_TARGET/opt/bitnami/scripts/init/functions" &>/dev/null; then
+        echo -e "\nvm_get_applications_password() {\necho \"\$SNF_IMAGE_PASSWD\"\n}\n" >> "\$SNF_IMAGE_TARGET/opt/bitnami/scripts/init/functions"
+    fi
+
+    if grep vm_get_system_password "\$SNF_IMAGE_TARGET/opt/bitnami/scripts/init/functions" &>/dev/null; then
+        echo -e "\nvm_get_system_password() {\necho \"\$SNF_IMAGE_PASSWD\"\n}\n" >> "\$SNF_IMAGE_TARGET/opt/bitnami/scripts/init/functions"
+    fi
+else
+    warn "File: \\\`/opt/bitnami/scripts/init/functions' does not exist!"
+fi
+exit 101
+EOF
+chmod +x root/snf-image/helper/overwrite_task_ChangePassword
+
 # vim: set sta sts=4 shiftwidth=4 sw=4 et ai :
 

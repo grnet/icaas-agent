@@ -161,7 +161,7 @@ snf-mkimage $public -u "${ICAAS_IMAGE_OBJECT}" -a "$ICAAS_SYNNEFO_URL" \
     -t "$ICAAS_SYNNEFO_TOKEN" -r "$ICAAS_IMAGE_NAME" \
     --container "${ICAAS_IMAGE_CONTAINER}" \
     -m DESCRIPTION="$ICAAS_IMAGE_DESCRIPTION" \
-    -m EXCLUDE_TASK_DeleteSSHKeys=yes \
+    -m ALLOW_MOUNTED_TASK_OVERWRITING=yes \
     --add-timestamp --host-run="$host_run" "$IMAGE"
 
 update_status "Image creation finished..."
