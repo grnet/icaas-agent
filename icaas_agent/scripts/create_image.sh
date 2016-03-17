@@ -71,7 +71,22 @@ fi
 TMP=$(mktemp -d /var/tmp/icaas-XXXXXXXX)
 add_cleanup rm -rf "$TMP"
 
-image_kb="$(curl -L -I "$ICAAS_IMAGE_SRC" -o - | grep -i Content-Length | tail -1 | sed -e 's/.* \([0-9]*\).*$/\1/')"
+
+if ! curl --output /dev/null --silent --head --fail "$ICAAS_IMAGE_SRC"; then
+    error "URL: \`$URL' does not exist!"
+fi
+
+info "Checking image size"
+header="$(curl -# -L -I "$ICAAS_IMAGE_SRC" -o -)"
+if [ -z "$header" ]; then
+    error "Unable to find image size"
+fi
+
+if grep "HTTP/1.1 404 Not Found" > /dev/null <<< "$header"; then
+    error "File: \`$ICAAS_IMAGE_SRC' does not exist"
+fi
+
+image_kb="$(grep -i Content-Length <<< "$header" | tail -1 | sed -e 's/.* \([0-9]*\).*$/\1/')"
 if [ -z "$image_kb" ]; then
     image_kb=0
 fi
